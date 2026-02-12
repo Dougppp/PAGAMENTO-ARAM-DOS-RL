@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CONTROLE DE CAIXA E PROVAS - ARAM DOS RL</title>
+    <style>
+        :root {
+            --bg-body: #0d1117;
+            --bg-container: #161b22;
+            --blue-accent: #58a6ff;
+            --orange-accent: #f08d49;
+            --green: #3fb950;
+            --border: #30363d;
+        }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg-body); color: #e0e0e0; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: var(--bg-container); padding: 30px; border-radius: 12px; border: 1px solid var(--border); }
+        h1, h2 { color: var(--blue-accent); text-align: center; text-transform: uppercase; }
+        
+        /* Estilo das Tabelas */
+        table { width: 100%; border-collapse: collapse; margin-bottom: 40px; background: var(--bg-body); border-radius: 8px; overflow: hidden; }
+        th { background: #1f2937; color: var(--blue-accent); padding: 12px; font-size: 13px; }
+        td { padding: 12px; text-align: center; border-bottom: 1px solid var(--border); font-size: 14px; }
+        .status-pago { color: var(--green); font-weight: bold; }
+        
+        /* Galeria de Prints */
+        .screenshot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .screenshot-card { background: var(--bg-body); border: 1px solid var(--border); padding: 10px; border-radius: 8px; text-align: center; }
+        .screenshot-card img { width: 100%; border-radius: 4px; cursor: pointer; transition: 0.3s; }
+        .screenshot-card img:hover { transform: scale(1.05); }
+        .screenshot-info { margin-top: 10px; font-size: 12px; color: var(--orange-accent); }
+
+        .btn-voltar { display: inline-block; margin-bottom: 20px; color: var(--blue-accent); text-decoration: none; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="index.html" class="btn-voltar">← Voltar para Classificação</a>
+    <h1>💰 GESTÃO DE CAIXA E PROVAS</h1>
+
+    <h2>Controle de Pagamentos (R$ 10,00 por Jogador)</h2>
+    <table id="tabela-pagamentos">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Jogador</th>
+                <th>Valor</th>
+                <th>Status</th>
+                <th>Data Pgto</th>
+            </tr>
+        </thead>
+        <tbody id="corpo-pagamentos">
+            </tbody>
+    </table>
+
+    <h2>🖼️ Histórico de Partidas (Prints)</h2>
+    <div id="loading-prints" style="text-align: center;">Carregando galeria de provas...</div>
+    <div class="screenshot-grid" id="galeria-prints">
+        </div>
+
+    <div style="text-align: center; margin-top: 40px; font-size: 12px; color: #8b949e;">
+        Pote Total Atual: <span id="pote-total" style="color: var(--green); font-weight: bold;">R$ 0,00</span>
+    </div>
+</div>
+
+<script>
+    // IMPORTANTE: Crie uma SEGUNDA ABA na sua planilha e publique como CSV
+    // Colunas da Planilha: Time, Jogador, Valor, Status, Data, Link_Imagem
+    const ADMIN_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRUeUJJ1AvSWlmC4vExOxHrcbJD2AVgDKcUxH1rE1EoKMSAatwyFA9gd8taGC2yBwGYNJDcMFjSdvLr/pub?gid=1281303703&single=true&output=csv';
+
+    async function carregarAdmin() {
+        try {
+            const r = await fetch(ADMIN_CSV);
+            const t = await r.text();
+            const lines = t.split(/\r?\n/).filter(l => l.trim() !== "").slice(1);
+            
+            const corpoPgto = document.getElementById('corpo-pagamentos');
+            const galeria = document.getElementById('galeria-prints');
+            let totalArrecadado = 0;
+
+            corpoPgto.innerHTML = '';
+            galeria.innerHTML = '';
+
+            lines.forEach(line => {
+                const cols = line.split(',').map(c => c.replace(/"/g, '').trim());
+                
+                if (cols.length >= 5) {
+                    // Preenche Tabela de Pagamentos
+                    const tr = document.createElement('tr');
+                    const pago = cols[3].toLowerCase() === 'pago';
+                    if(pago) totalArrecadado += parseFloat(cols[2].replace('R$', '').replace(',', '.'));
+
+                    tr.innerHTML = `
+                        <td>${cols[0]}</td>
+                        <td>${cols[1]}</td>
+                        <td>${cols[2]}</td>
+                        <td class="${pago ? 'status-pago' : ''}">${cols[3]}</td>
+                        <td>${cols[4]}</td>
+                    `;
+                    corpoPgto.appendChild(tr);
+
+                    // Preenche Galeria de Prints (se houver link na coluna 6)
+                    if (cols[5] && cols[5].startsWith('http')) {
+                        const card = document.createElement('div');
+                        card.className = 'screenshot-card';
+                        card.innerHTML = `
+                            <a href="${cols[5]}" target="_blank">
+                                <img src="${cols[5]}" alt="Print do Jogo">
+                            </a>
+                            <div class="screenshot-info">${cols[0]} - ${cols[4]}</div>
+                        `;
+                        galeria.appendChild(card);
+                    }
+                }
+            });
+
+            document.getElementById('pote-total').innerText = `R$ ${totalArrecadado.toFixed(2)}`;
+            document.getElementById('loading-prints').style.display = 'none';
+
+        } catch (e) {
+            console.error("Erro ao carregar admin", e);
+        }
+    }
+
+    carregarAdmin();
+</script>
+
+</body>
+</html>
